@@ -1,0 +1,199 @@
+Kubernetes Basics v1.6
+
+In this lab, you learn how to:
+
+Provision a Kubernetes cluster using Google Kubernetes Engine.
+Deploy and manage Docker containers using kubectl.
+Split an application into microservices using Kubernetes' Deployments and Services.
+
+step1:Make sure the following APIs are enabled in Cloud Platform Console:
+comand:gcloud services enable containerregistry.googleapis.com
+step2:You can list the active account name with this command:
+comand:gcloud auth list
+step3:You can list the project ID with this command
+ comand:gcloud config list project
+step 4:gcloud config list project
+comand:git clone https://github.com/googlecodelabs/orchestrate-with-kubernetes.git
+step 5:Review the app layout
+
+comand:cd orchestrate-with-kubernetes/kubernetes
+
+
+Start a Kubernetes cluster
+
+step1:Define your zone as a project default zone. This way you do not need to specify --zone parameter in gcloud commands.
+
+comand:gcloud config set compute/zone us-central1-a
+
+step2:In Cloud Shell, run the following command to start a Kubernetes cluster called bootcamp that runs 5 nodes.
+
+comand:gcloud container clusters create bootcamp --num-nodes 5 --scopes "https://www.googleapis.com/auth/projecthosting,storage-rw"
+
+step3:After the cluster is created, check your installed version of Kubernetes using the kubectl version command.
+comand:kubectl version
+
+step4:Use kubectl cluster-info to find out more about the cluster.
+
+comand:kubectl cluster-info
+
+step5:View your running nodes in Cloud Platform Console.
+comand:gcloud compute instances list
+
+Bash Completion (Optional)
+Kubernetes comes with auto-completion. You can use the kubectl completion command and the built-in source command to set this up.
+
+step1:Run this command
+comand:source <(kubectl completion bash)
+
+step2:Press Tab to display a list of available commands
+comand:kubectl <TAB><TAB>
+
+Run and deploy a container
+
+step1:Use kubectl create deployment to launch a single instance of the nginx container.
+comand:kubectl create deployment nginx --image=nginx:1.10.0
+
+step2:Use the kubectl get pods command to view the pod running the nginx container.
+comand:kubectl get pods
+
+step3:Use the kubectl expose command to expose the nginx container outside Kubernetes.
+comand:kubectl expose deployment nginx --port 80 --type LoadBalancer
+
+step4:Use the kubectl get command to view the new service.
+comand:kubectl get services
+
+step5:Use the kubectl scale command to scale up the number of backend applications (pods) running on your service using.
+comand:kubectl scale deployment nginx --replicas 3
+
+step6:Get the pods one more time to confirm that Kubernetes has updated the number of pods.
+
+comand:kubectl get pods
+
+step7:Use the kubectl get services command again to confirm that your external IP address has not changed.
+
+comand:kubectl get services
+
+step 8:Use the external IP address with the curl command to test your demo application.
+comand:curl http://<External IP>:80
+
+step 10 :Clean up nginx by running the following commands.
+comand:kubectl delete deployment nginx
+comand:kubectl delete service nginx
+
+Pods	
+Investigate pods in more detail.
+
+step1:Explore the built-in pod documentation using the kubectl explain command.
+comand:kubectl explain pods
+
+step2:Explore the monolith pod's configuration file
+comand:cat pods/monolith.yaml
+
+step3:Use the kubectl explain command with the .spec option to view more information about API objects. This example inspects containers.
+comand:kubectl explain pods.spec.containers
+
+step4:Create the monolith pod using kubectl create.
+comand:kubectl create -f pods/monolith.yaml
+
+step5:Use the kubectl get pods command to list all pods running in the default namespace
+comand:kubectl get pods
+
+step6:When the pod is running, use the kubectl describe command to get more information about the monolith pod.
+comand:kubectl describe pods monolith
+
+Interacting with pods
+
+step1:Run the following command to set up port-forwarding from a local port, 10080, to a pod port, 80 (where your container is listening).
+comand:kubectl port-forward monolith 10080:80
+step2:To access your pod, return to the first terminal window and run the following curl command.
+comand:curl http://127.0.0.1:10080
+
+step3:See what happens when you hit a secure endpoint. You should get an error.
+comand:curl http://127.0.0.1:10080/secure
+step4:Log in to get an auth token from monolith.
+comand:curl -u user http://127.0.0.1:10080/login
+
+step5:Cloud Shell doesn't handle copying long strings well, so copy the token into an environment variable.
+TOKEN=$(curl http://127.0.0.1:10080/login -u user|jq -r '.token')
+At the login prompt, enter the password as password to sign in.
+
+step 6:Access the secure endpoint again, and this time include the auth token.
+comand:curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:10080/secure
+
+step7:Use the kubectl logs command to view logs for the monolith pod.
+comand:kubectl logs monolith
+
+step8:Use the kubectl logs command to view logs for the monolith pod.
+comand:kubectl logs monolith
+
+step9:Open another terminal and use the -f flag to get a stream of logs in real-time!
+
+To create the third terminal, click the + button in Cloud Shell and run the following command.
+comand:kubectl logs -f monolith
+
+step10:Use curl in terminal 1 to interact with monolith. And you see logs update in terminal 3.
+
+comand:curl http://127.0.0.1:10080
+
+step11:Use the kubectl exec command to run an interactive shell inside the monolith pod. This can be useful when you want to troubleshoot from within a container.
+comand:kubectl exec monolith --stdin --tty -c monolith /bin/sh
+
+step12:Optional: In the shell, you can test external (outward facing) connectivity using the ping command.
+comand:ping -c 3 google.com
+
+step13:	Sign out of the shell.
+comand:exit
+
+Monitoring and Health Checks
+
+In this lab, you learn how to:
+
+Create pods with readiness and liveness probes.
+
+Troubleshoot failing readiness and liveness probes.
+
+step1:Explore the healthy-monolith pod configuration file.
+comand:cat pods/healthy-monolith.yaml
+step2:Create the healthy-monolith pod using kubectl.
+comand:kubectl create -f pods/healthy-monolith.yaml
+
+step3:Pods are not marked ready until the readiness probe returns an HTTP 200 response. Use the kubectl describe command to view details for the healthy-monolith pod.
+comand:kubectl describe pod healthy-monolith
+
+Readiness Probes
+
+See how Kubernetes responds to failed readiness probes. The monolith container supports the ability to force failures of its readiness and liveness probes. This enables you to simulate failures for the healthy-monolith pod.
+step 1:Use the kubectl port-forward command in terminal 2 to forward a local port to the health port of the healthy-monolith pod.
+comand:kubectl port-forward healthy-monolith 10081:81
+step2:Force the monolith container readiness probe to fail. Use the curl command in terminal 1 to toggle the readiness probe status. Note that this command does not show any output.
+comand:curl http://127.0.0.1:10081/readiness/status
+step3:Get the status of the healthy-monolith pod using the kubectl get pods -w command.
+comand:kubectl get pods healthy-monolith -w
+step4:Press Ctrl+C when there are 0/1 ready containers. Use the kubectl describe command to get more details about the failing readiness probe.
+comand:kubectl describe pods healthy-monolith
+step5:Notice the events for the healthy-monolith pod report details about failing readiness probes.
+
+To force the monolith container readiness probe to pass, toggle the readiness probe status by using the curl command.
+comand:curl http://127.0.0.1:10081/readiness/status
+step6:Wait about 15 seconds and get the status of the healthy-monolith pod using the kubectl get pods command.
+comand:kubectl get pods healthy-monolith
+
+Liveness Probes
+Building on what you learned in the previous tutorial, use the kubectl port-forward and curl commands to force the monolith container liveness probe to fail. Observe how Kubernetes responds to failing liveness probes.
+
+step1:Use the kubectl port-forward command to forward a local port to the health port of the healthy-monolith pod in terminal 2.
+ comand:kubectl port-forward healthy-monolith 10081:81
+
+step2:To force the monolith container readiness probe to pass, toggle the readiness probe status by using the curl command in another terminal.
+comand:curl http://127.0.0.1:10081/healthz/status
+
+step3:Get the status of the healthy-monolith pod using the kubectl get pods -w command.
+
+comand:kubectl get pods healthy-monolith -w
+
+step4:When a liveness probe fails, the container is restarted. Once restarted, the healthy-monolith pod should return to a healthy state. Press Ctrl+C to exit that command when the pod restarts. Note the restart count.
+
+step5:Use the kubectl describe command to get more details about the failing liveness probe. You can see the related events for when the liveness probe failed and the pod was restarted.
+
+comand:kubectl describe pods healthy-monolith
+
